@@ -1,5 +1,6 @@
+
 /*
- *  Copyright 2018-2021 Felix Garcia Carballeira, Alejandro Calderon Mateos, Diego Camarmas Alonso
+ *  Copyright 2018-2024 Felix Garcia Carballeira, Alejandro Calderon Mateos, Diego Camarmas Alonso
  *
  *  This file is part of CREATOR.
  *
@@ -22,48 +23,78 @@
   function show_notification ( msg, type )
   {
      // show notification
-     app._data.alertMessage = msg ;
-     app._data.type         = type ;
-     app.$bvToast.toast(app._data.alertMessage, {
-        variant: app._data.type,
+     var alertMessage = msg ;
+     var type         = type ;
+     app.$bvToast.toast(alertMessage, {
+        variant: type,
         solid: true,
         toaster: "b-toaster-top-center",
         autoHideDelay: app._data.notificationTime,
+        noAutoHide: (type == 'danger')
      }) ;
 
      // add notification to the notification summary
      var date = new Date() ;
-     notifications.push({ mess: app._data.alertMessage,
-                          color: app._data.type,
+     notifications.push({ mess: alertMessage,
+                          color: type,
                           time: date.getHours()+":"+date.getMinutes()+":"+date.getSeconds(),
                           date: date.getDate()+"/"+(date.getMonth()+1)+"/"+date.getFullYear() }) ;
 
      return true ;
   }
 
+
+  /*
+   *  Loading
+   */
+
+  var loading_handler = null;
+
   function show_loading()
   {
      // if loading is programmed, skip
-     if (toHandler != null) {
+     if (loading_handler != null) {
          return ;
      }
 
      // after half second show the loading spinner
-     toHandler = setTimeout(function(){
- 			       $(".loading").show() ;
-			       toHandler = null ;
-			    }, 500) ;
+     loading_handler = setTimeout(function(){
+             $("#loading").show() ;
+             loading_handler = null ;
+          }, 500) ;
   }
 
   function hide_loading ( )
   {
       // if loading is programmed, cancel it
-      if (toHandler != null) {
-          clearTimeout(toHandler);
-          toHandler = null;
+      if (loading_handler != null) {
+          clearTimeout(loading_handler);
+          loading_handler = null;
       }
 
       // disable loading spinner
-      $(".loading").hide();
+      $("#loading").hide();
+  }
+
+
+  /*
+   *  Glowing
+   */
+
+  function btn_glow ( btn_name, post_label )
+  {
+    if (0 == run_program)
+    {
+      var buttonDec = '#popoverValueContent' + btn_name + post_label ;
+      var buttonHex = '#popoverValueContent' + btn_name;
+
+      $(buttonDec).attr("style", "background-color:#c2c2c2;");
+      $(buttonHex).attr("style", "background-color:#c2c2c2;");
+
+      setTimeout(function() {
+        $(buttonDec).attr("style", "");
+        $(buttonHex).attr("style", "");
+      }, 500);
+    }
   }
 

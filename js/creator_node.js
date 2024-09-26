@@ -1,5 +1,6 @@
+
 /*
- *  Copyright 2018-2021 Felix Garcia Carballeira, Diego Camarmas Alonso, Alejandro Calderon Mateos
+ *  Copyright 2018-2024 Felix Garcia Carballeira, Diego Camarmas Alonso, Alejandro Calderon Mateos
  *
  *  This file is part of CREATOR.
  *
@@ -55,13 +56,13 @@ function assembly_compile ( code )
     switch (ret.status)
     {
         case "error":
-	     var code_assembly_segment = code_assembly.split('\n') ;
-	     ret.msg += "\n\n" ;
-	     if (ret.line > 0)
-	         ret.msg += "  " + (ret.line+0) + " " + code_assembly_segment[ret.line - 1] + "\n" ;
-	         ret.msg += "->" + (ret.line+1) + " " + code_assembly_segment[ret.line] + "\n" ;
-	     if (ret.line < code_assembly_segment.length - 1)
-	         ret.msg += "  " + (ret.line+2) + " " + code_assembly_segment[ret.line + 1] + "\n" ;
+         var code_assembly_segment = code_assembly.split('\n') ;
+         ret.msg += "\n\n" ;
+         if (ret.line > 0)
+             ret.msg += "  " + (ret.line+0) + " " + code_assembly_segment[ret.line - 1] + "\n" ;
+             ret.msg += "->" + (ret.line+1) + " " + code_assembly_segment[ret.line] + "\n" ;
+         if (ret.line < code_assembly_segment.length - 1)
+             ret.msg += "  " + (ret.line+2) + " " + code_assembly_segment[ret.line + 1] + "\n" ;
              break;
 
         case "warning":
@@ -85,7 +86,6 @@ function assembly_compile ( code )
 function execute_program ( limit_n_instructions )
 {
     var ret = {} ;
-
     ret = executeProgramOneShot(limit_n_instructions) ;
     if (ret.error === true)
     {
@@ -128,7 +128,8 @@ function get_state ( )
             elto_value  = architecture.components[i].elements[j].value ;
 
             //get default value
-            if (architecture.components[i].double_precision == true) {
+            if (architecture.components[i].double_precision === true && architecture.components[i].double_precision_type == "linked")
+            {
                 var aux_value;
                 var aux_sim1;
                 var aux_sim2;
@@ -136,16 +137,16 @@ function get_state ( )
                 for (var a = 0; a < architecture_hash.length; a++) {
                   for (var b = 0; b < architecture.components[a].elements.length; b++) {
                     if(architecture.components[a].elements[b].name == architecture.components[i].elements[j].simple_reg[0]){
-                      aux_sim1 = bin2hex(float2bin(architecture.components[a].elements[b].default_value));
+                      aux_sim1 = bin2hex(float2bin(bi_BigIntTofloat(architecture.components[a].elements[b].default_value)));
                     }
                     if(architecture.components[a].elements[b].name == architecture.components[i].elements[j].simple_reg[1]){
-                      aux_sim2 = bin2hex(float2bin(architecture.components[a].elements[b].default_value));
+                      aux_sim2 = bin2hex(float2bin(bi_BigIntTofloat(architecture.components[a].elements[b].default_value)));
                     }
                   }
                 }
 
                 aux_value = aux_sim1 + aux_sim2;
-                elto_dvalue = hex2double("0x" + aux_value)
+                elto_dvalue = hex2double("0x" + aux_value);
             }
             else{
               elto_dvalue = architecture.components[i].elements[j].default_value ;
@@ -161,13 +162,13 @@ function get_state ( )
 
             // value != default value => dumpt it
             elto_string = "0x" + elto_value.toString(16) ;
-            if (architecture.components[i].type == "floating point") 
+            if (architecture.components[i].type == "fp_registers") 
             {
-                if(architecture.components[i].double_precision == false){
-                  elto_string = "0x" + bin2hex(float2bin(elto_value)) ;
+                if(architecture.components[i].double_precision === false){
+                  elto_string = "0x" + bin2hex(float2bin(bi_BigIntTofloat(elto_value))) ;
                 }
-                if (architecture.components[i].double_precision == true) {
-                  elto_string = "0x" + bin2hex(double2bin(elto_value)) ;
+                if (architecture.components[i].double_precision === true) {
+                  elto_string = "0x" + bin2hex(double2bin(bi_BigIntTodouble(elto_value))) ;
                 }
             }
 
@@ -176,22 +177,24 @@ function get_state ( )
     }
 
     // dump memory
-    for (var i in memory)
+    var addrs = main_memory_get_addresses() ;
+    for (var i=0; i<addrs.length; i++)
     {
-        for (var j=0; j<memory[i].length; j++)
-        {
-            elto_value  = memory[i][j].Binary[3].Bin    + memory[i][j].Binary[2].Bin +
-                          memory[i][j].Binary[1].Bin    + memory[i][j].Binary[0].Bin ;
-            elto_dvalue = memory[i][j].Binary[3].DefBin + memory[i][j].Binary[2].DefBin +
-                          memory[i][j].Binary[1].DefBin + memory[i][j].Binary[0].DefBin ;
+      if(addrs[i] >= parseInt(architecture.memory_layout[3].value)){
+        continue;
+      }
 
-            if (elto_value != elto_dvalue)
-            {
-                elto_string = "0x" + elto_value ;
-                ret.msg = ret.msg + "memory[0x" + memory[i][j].Address.toString(16) + "]" + ":" + elto_string + "; ";
-            }
-        }
+      elto_value  = main_memory_read_value(addrs[i]) ;
+      elto_dvalue = main_memory_read_default_value(addrs[i]) ;
+
+      if (elto_value != elto_dvalue)
+      {
+        addr_string = "0x" + parseInt(addrs[i]).toString(16) ;
+        elto_string = "0x" + elto_value ;
+        ret.msg = ret.msg + "memory[" + addr_string + "]" + ":" + elto_string + "; ";
+      }
     }
+    
 
     // dump keyboard
     ret.msg = ret.msg + "keyboard[0x0]" + ":'" + encodeURIComponent(keyboard) + "'; ";
@@ -209,19 +212,19 @@ function compare_states ( ref_state, alt_state )
                 'msg':    ''
               } ;
 
-    // 0) clean data
-    //ref_state = ref_state.trim() ;
-    //alt_state = alt_state.trim() ;
-
     ref_state_arr = ref_state.split('\n')
       .map(function(s) { return s.replace(/^\s*|\s*$/g, ""); })
       .filter(function(x) { return x; });
-    ref_state = ref_state_arr[ref_state_arr.length-1];
+    if (ref_state_arr.length > 0)
+         ref_state = ref_state_arr[ref_state_arr.length-1];
+    else ref_state = '' ;
 
     alt_state_arr = alt_state.split('\n')
       .map(function(s) { return s.replace(/^\s*|\s*$/g, ""); })
       .filter(function(x) { return x; });
-    alt_state = alt_state_arr[alt_state_arr.length-1];
+    if (alt_state_arr.length > 0)
+         alt_state = alt_state_arr[alt_state_arr.length-1];
+    else alt_state = '' ;
 
     // 1) check equals
     if (ref_state == alt_state) {
@@ -231,26 +234,31 @@ function compare_states ( ref_state, alt_state )
 
     // 2) check m_alt included within m_ref
     var m_ref = {} ;
-    ref_state.split(';').map(function(i) {
-			         var parts = i.split(':') ;
-                                 if (parts.length != 2) {
-                                     return ;
-                                 }
+    if (ref_state.includes(';')) {
+        ref_state.split(';').map(function(i) {
+                         var parts = i.split(':') ;
+                                     if (parts.length !== 2) {
+                                         return ;
+                                     }
 
-			         m_ref[parts[0].trim()] = parts[1].trim() ;
-                             }) ;
+                         m_ref[parts[0].trim()] = parts[1].trim() ;
+                                 }) ;
+    }
+
     var m_alt = {} ;
-    alt_state.split(';').map(function(i) {
-			         var parts = i.split(':') ;
-                                 if (parts.length != 2) {
-                                     return ;
-                                 }
+    if (alt_state.includes(';')) {
+        alt_state.split(';').map(function(i) {
+                             var parts = i.split(':') ;
+                                     if (parts.length != 2) {
+                                         return ;
+                                     }
 
-			         m_alt[parts[0].trim()] = parts[1].trim() ;
-                             }) ;
+                         m_alt[parts[0].trim()] = parts[1].trim() ;
+                                 }) ;
+    }
 
     ret.msg = "Different: " ;
-    for (elto in m_ref)
+    for (var elto in m_ref)
     {
          if (m_alt[elto] != m_ref[elto])
          {

@@ -1,5 +1,6 @@
+
 /*
- *  Copyright 2018-2021 Felix Garcia Carballeira, Alejandro Calderon Mateos, Diego Camarmas Alonso
+ *  Copyright 2018-2024 Felix Garcia Carballeira, Alejandro Calderon Mateos, Diego Camarmas Alonso
  *
  *  This file is part of CREATOR.
  *
@@ -19,18 +20,114 @@
  */
 
 
-  function bi_intToBigInt ( int_value, int_base )
+function bi_intToBigInt ( int_value, int_base )
+{
+  return BigInt(parseInt(int_value) >>> 0, int_base) ;
+}
+
+
+function bi_floatToBigInt ( float_value )
+{
+  var BigInt_value = null ;
+  var bin          = float2bin(float_value);
+  var hex          = bin2hex(bin);
+
+  BigInt_value = BigInt("0x" + hex);
+
+  return BigInt_value ;
+}
+
+function bi_BigIntTofloat ( big_int_value )
+{
+  var hex = big_int_value.toString(16);
+
+  if (hex.length > 8) 
   {
-       var auxBigInt = null ;
-
-       if (typeof bigInt !== "undefined" && int_base == 16)
-            auxBigInt = bigInt(int_value, int_base).value ;
-
-       else if (typeof bigInt !== "undefined")
-            auxBigInt = bigInt(parseInt(int_value) >>> 0, int_base).value ;
-
-       else auxBigInt = BigInt(parseInt(int_value) >>> 0, int_base) ;
-
-       return auxBigInt ;
+    hex = hex.substring(hex.length-8, hex.length);
   }
 
+  return hex2float("0x" + hex);
+}
+
+
+function bi_doubleToBigInt ( double_value )
+{
+  var BigInt_value = null ;
+  var bin          = double2bin(double_value);
+  var hex          = bin2hex(bin);
+
+  BigInt_value = BigInt("0x" + hex);
+
+  return BigInt_value ;
+}
+
+function bi_BigIntTodouble ( big_int_value )
+{
+  var hex = (big_int_value.toString(16)).padStart(16, "0");
+
+  return hex2double("0x" + hex);
+}
+
+
+//String to number/bigint
+function register_value_deserialize( architecture )
+{
+  //var architecture = architecture;
+
+  for (var i=0; i<architecture.components.length; i++)
+  {
+    for (var j=0; j< architecture.components[i].elements.length; j++)
+    {
+      if (architecture.components[i].type != "fp_registers"){
+        architecture.components[i].elements[j].value = bi_intToBigInt(architecture.components[i].elements[j].value,10) ;
+      }
+      else{
+        architecture.components[i].elements[j].value = bi_floatToBigInt(architecture.components[i].elements[j].value) ;
+      }
+
+      if (architecture.components[i].double_precision !== true)
+      {
+        if (architecture.components[i].type != "fp_registers"){
+          architecture.components[i].elements[j].default_value = bi_intToBigInt(architecture.components[i].elements[j].default_value,10) ;
+        }
+        else{
+          architecture.components[i].elements[j].default_value = bi_floatToBigInt(architecture.components[i].elements[j].default_value) ;
+        }
+      }
+    }
+  }
+
+  return architecture;
+}
+
+
+//Number/Bigint to string
+function register_value_serialize( architecture )
+{
+  var aux_architecture = jQuery.extend(true, {}, architecture);
+
+  for (var i=0; i<architecture.components.length; i++)
+  {
+    for (var j=0; j < architecture.components[i].elements.length; j++)
+    {
+      if (architecture.components[i].type != "fp_registers"){
+        aux_architecture.components[i].elements[j].value = parseInt(architecture.components[i].elements[j].value);
+      }
+      else{
+        aux_architecture.components[i].elements[j].value = bi_BigIntTofloat(architecture.components[i].elements[j].value);
+      }
+
+      if (architecture.components[i].double_precision !== true)
+      {
+        if (architecture.components[i].type != "fp_registers"){
+          aux_architecture.components[i].elements[j].default_value = parseInt(architecture.components[i].elements[j].default_value);
+        }
+        else{
+          aux_architecture.components[i].elements[j].default_value = bi_BigIntTofloat(architecture.components[i].elements[j].default_value);
+        }
+      }
+    }
+  }
+
+  return aux_architecture;
+}

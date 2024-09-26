@@ -108,17 +108,15 @@
 
    try
    {
-       if (argv.color) {
+       colors.disable() ;
+       if (argv.color)
+       {
+           colors.enable() ;
            colors.setTheme(color_theme) ;
        }
+
        var limit_n_ins   = parseInt(argv.maxins) ;
        var output_format = argv.output.toUpperCase() ;
-
-       // work: welcome
-       if (output_format == "NORMAL") {
-           var msg = welcome() ;
-           console.log(msg.success) ;
-       }
 
        // work: a) help and usage
        if ( (argv.a != "") && (argv.describe != "") )
@@ -133,6 +131,12 @@
              var o = help_usage() ;
              console.log(welcome() + '\n' + o) ;
              return process.exit(0) ;
+       }
+
+       // work: welcome
+       if (output_format == "NORMAL") {
+           var msg = welcome() ;
+           console.log(msg.success) ;
        }
 
        // work: b) list assembly files
@@ -177,16 +181,16 @@
                hdr = hdr + ',\tState' ;
 	             show_result(output_format, 'State', 'ko', ret['LastState'].msg.error, true) ;
                //continue ;
-               if(ret.LastState.status != "ok"){
-                process.exit(-1) ;
+               if (ret.LastState.status != "ok") {
+                   process.exit(-1) ;
                }
            }
 
            hdr = hdr + ',\tFinalState\n' ;
            ret = creator.get_state() ;
-           if(argv.result === ''){
-  	         show_result(output_format, 'FinalState', 'is', ret.msg, true) ;
-             console.log('');
+           if (argv.result === '') {
+  	       show_result(output_format, 'FinalState', 'is', ret.msg, true) ;
+               console.log('') ;
            }
        }
 
